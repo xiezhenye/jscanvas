@@ -3,7 +3,6 @@
  <head>
   <title> jsGraph sample </title>
  </head>
-
  <body>
  <div id="canvas" style="width:800px;height:800px;border:1px solid #aaa;background-color:#ccc"></div>
   <script type="text/javascript" src="jsGraph.js"></script>
@@ -11,9 +10,13 @@
   <!--
 	var canvas = createJsGraph(document.getElementById('canvas'));
 	canvas.circle([100,100], 40,'black');
-	canvas.ellipse([0,0],[100,40],'red','yellow',1);
-	canvas.roundRect([100,100],[200,200], 10,'blue');
-	canvas.rect([200,200],[300,300], 'white','black',2);
+	var el = canvas.ellipse([0,0],[100,40],'red','yellow',1);
+	el.gradient('#000', 'h');
+	var rr = canvas.roundRect([100,100],[200,273], 20,'blue');
+	rr.gradient('#fc0', 'v');
+
+	canvas.rect([200,200],[300,300], null,'black',2);
+	canvas.line([0,0],[400,300],'#f0f',3);
   //-->
   </script>
  </body>
