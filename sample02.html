@@ -1,0 +1,52 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title> jsGraph sample 2</title>
+ </head>
+ <body>
+ <div id="canvas" style="width:800px;height:800px;border:1px solid #aaa;background-color:#ccc;"></div>
+  <script type="text/javascript" src="jsGraph.js"></script>
+  <script type="text/javascript">
+  <!--
+	var canvas = createJsGraph(document.getElementById('canvas'),800,800);
+	canvas.arc([200,200], 200, 0, 45).setStroke('black',2).setFill(null);
+	canvas.arc([200,200], 200, 45, 45).setStroke('red',2).setFill(null);
+	canvas.arc([200,200], 200, 0, -45).setStroke('red',2).setFill(null);
+	canvas.arc([200,200], 200, -45, -45).setStroke('black',2).setFill(null);
+	canvas.line([0,200],[400,200]); 
+	
+	var rr = canvas.roundRect([100,100],[300,150],5).setFill('white').setStroke('#888',1);
+
+	var p=canvas.polygon([[200,80],[220,180],[200,200],[180,180]]);
+	p.setFill('#ddf');
+	p.setStroke('black',1);
+	
+	var c=canvas.circle([200,80],10);
+	c.setStroke('yellow',2);
+	c.setFill(null);
+	
+	var e=canvas.ellipse([190,190],[210,250]);
+	e.setStroke('black',1);
+	e.setFill('#ddf');
+	var a=canvas.arc([200,200],40,135,90).setStroke('black',2).setFill(null);
+
+	var l=canvas.line([200,10],[200,30]).setStroke('black');
+	var r= canvas.rect([198,130],[202,182]).setFill('#fc0');
+	
+	function rotate1(){
+		p.rotate(6,[200,200]);
+		c.rotate(6,[200,200]);
+		e.rotate(6,[200,200]);
+		r.rotate(6,[200,200]);
+		a.rotate(6,[200,200]);
+	}
+	function rotate2(){
+		l.rotate(2,[200,30]);
+	}
+	p.onclick(function(e){alert(e)});
+	setInterval('rotate1()',1000);
+	setInterval('rotate2()',15);
+  //-->
+  </script>
+ </body>
+</html>
