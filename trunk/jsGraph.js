@@ -5,8 +5,8 @@ function createJsGraph(target,width,height) {
 		return new jsGraphVML(target,width,height);
 	}
 }
-var JsGraphUtil={};
-JsGraphUtil.calcCenter=function(shape,param){
+var JsGraphUtil={
+calcCenter:function(shape,param){
 	switch (shape)
 	{
 	case 'rect':
@@ -25,43 +25,143 @@ JsGraphUtil.calcCenter=function(shape,param){
 	case 'circle':
 		return param[0];
 	}
-}
-JsGraphUtil.rotate=function(points,arg,center){
+},
+rotate:function(points,arg,center){
 	var ps=[];
 	for(var i=0;i<points.length;i++){
-		var t=arg/180*Math.PI;
+		var t=arg/180.0*Math.PI;
 		var dx=points[i][0]-center[0];
 		var dy=points[i][1]-center[1];
 		ps.push([dx*Math.cos(t)-dy*Math.sin(t)+center[0],dx*Math.sin(t)+dy*Math.cos(t)+center[1]]);
 	}
 	return ps;
 }
+}
+function jsGraphBindShapeFunc(space,o,target){
+	o.group=function(point){
+		var ret=new space.Group(target,point);
+		return ret;
+	}
+	o.polygon=function(points){
+		var ret=new space.Polygon(target,points);
+		return ret;
+	}
+	o.circle=function(point,r){
+		var ret=new space.Circle(target,point,r);
+		return ret;
+	}
+	o.ellipse = function(point1, point2){
+		var ret=new space.Ellipse(target,point1, point2);
+		return ret;
+	}
+	o.rect = function(point1, point2){
+		var ret=new space.Rect(target,point1, point2);
+		return ret;
+	}
+	o.roundRect = function(point1, point2, r){
+		var ret=new space.RoundRect(target,point1, point2,r);
+		return ret;
+	}
+	o.line = function(point1, point2){
+		var ret=new space.Line(target,point1, point2);
+		return ret;
+	}
+	o.arc = function(point, r, beginArg, arg){
+		var ret=new space.Arc(target,point, r, beginArg, arg);
+		return ret;
+	}
+	o.sector = function(point, r, beginArg, arg){
+		var ret=new space.Sector(target,point, r, beginArg, arg);
+		return ret;
+	}
+}
+function jsGraphShape(){
+	this.show=function(){
+		this.o.style.visibility='visible';
+	}
+	this.hide=function(){
+		this.o.style.visibility='hidden';
+	}
+}
 
-function jsGraphShapeSVG(){
+//begin svg
+var jsGraphShapeSVG={}
+jsGraphShapeSVG.Base=function(){
+	this.svgNS = "http://www.w3.org/2000/svg";
+	this.svg=null;
 	this.setSVG=function(svg){
 		this.svg=svg;
 	}
-	this.setFillStroke=function(fill, stroke, strokeWidth){
+	this.fill=function(fill){
+		if (fill != null) {
+			this.o.setAttribute("fill", fill);
+		} else {
+			this.o.setAttribute("fill", "none");
+		}
+		return this;
+	}
+	this.stroke=function(stroke, strokeWidth){
 		if (stroke != null) {
 			this.o.setAttribute("stroke", stroke);
 		} else {
 			this.o.setAttribute("stroke", "none");
 		}
 		if (strokeWidth != null) {
-			this.o.setAttribute("stroke-width", strokeWidth);
-		}
-		if (fill != null) {
-			this.o.setAttribute("fill", fill);
+			this.o.setAttribute("stroke-width", strokeWidth+'px');
 		} else {
-			this.o.setAttribute("fill", "none");
+			this.o.setAttribute("stroke-width", 0+'px');
 		}
+		return this;
 	}
 	this.draw=function(svg){
 		this.svg.appendChild(this.o);
 	}
+	this.rotate=function(arg,center){
+		var t = this.o.getAttribute('transform');
+		if (t==null){
+			t='';
+		}
+		var m=t.match(/^(.*)rotate\(([^\)]+)\)\s*$/)
+		if (m){
+			var ps=m[2].split(' ');
+			t=m[1]+" rotate("+(arg+parseInt(ps[0]))+" "+center[0]+" "+center[1]+")"
+		} else {
+			t+= " rotate("+arg+" "+center[0]+" "+center[1]+")"
+		}
+		this.o.setAttribute('transform',t);
+		return this;
+	}
+	this.onclick=function(callback){
+		var self=this;
+		this.o.onclick=function(e){
+			callback(e,self);
+		}
+		return this;
+	}
 }
-function jsGraphPolygonSVG(points){
-	this.o = document.createElementNS(svgNS, "polygon");
+jsGraphShapeSVG.Base.prototype=new jsGraphShape();
+
+jsGraphShapeSVG.Group=function(svg,point){
+	this.o = document.createElementNS(this.svgNS, "g");
+	this._point=point;
+	this.svg=svg;
+	this.init= function (point){
+		var t='translate('+point[0]+','+point[1]+')';
+		this.o.setAttribute('transform',t);
+		this.svg.appendChild(this.o);
+	}
+	this.init(point);
+	this.oldRotate=this.rotate;
+	this.rotate=function(arg,center){
+		this.oldRotate(arg,[center[0]-this._point[0],center[1]-this._point[1]]);
+	}
+	jsGraphBindShapeFunc(jsGraphShapeSVG,this,this.o);
+}
+jsGraphShapeSVG.Group.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.Polygon=function(svg,points){
+	this.o = document.createElementNS(this.svgNS, "polygon");
+	this.svg=svg;
 	this.init= function (points){
 		var pointsAttr = '';
 		for (var i=0;i<points.length ;i++ ){
@@ -69,17 +169,105 @@ function jsGraphPolygonSVG(points){
 		}
 		this.points=points;
 		this.o.setAttribute("points", pointsAttr);
+		this.svg.appendChild(this.o);
 	}
 	this.init(points);
-	this.rotate=function(arg,center){
-		var newPoints = JsGraphUtil.rotate(this.points,arg,center);
-		this.init(newPoints);
-	}
 }
-jsGraphPolygonSVG.prototype=new jsGraphShapeSVG();
+jsGraphShapeSVG.Polygon.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.Circle=function(svg,point, r){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "circle");
+	this.init = function(point, r){
+		this.o.setAttribute("r", r);
+		this.o.setAttribute("cx", point[0]+"px");
+		this.o.setAttribute("cy", point[1]+"px");
+		this.svg.appendChild(this.o);
+		//return new SVGObject(o,['circle',[point, r]]);
+	}
+	this.init(point, r);
+}
+jsGraphShapeSVG.Circle.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.Rect=function(svg,point1, point2){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "rect");
+	this.init = function(point1, point2){
+		this.o.setAttribute("x", point1[0]+"px");
+		this.o.setAttribute("y", point1[1]+"px");
+		this.o.setAttribute("width", (point2[0]-point1[0])+"px");
+		this.o.setAttribute("height", (point2[1]-point1[1])+"px");
+		this.svg.appendChild(this.o);
+	}
+	this.init(point1,point2);
+}
+jsGraphShapeSVG.Rect.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.Ellipse=function(svg,point1, point2){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "ellipse");
+	this.init = function(point1, point2){
+		this.o.setAttribute("cx", ((point1[0]+point2[0])/2)+"px");
+		this.o.setAttribute("cy", ((point1[1]+point2[1])/2)+"px");
+		this.o.setAttribute("rx", ((point2[0]-point1[0])/2)+"px");
+		this.o.setAttribute("ry", ((point2[1]-point1[1])/2)+"px");
+		this.svg.appendChild(this.o);
+		//return new SVGObject(o,['ellipse',[point1, point2]]);
+	}
+	this.init(point1,point2);
+}
+jsGraphShapeSVG.Ellipse.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.RoundRect=function(svg,point1, point2,r){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "rect");
+	this.init = function(point1, point2,r){
+		this.o.setAttribute("x", point1[0]+"px");
+		this.o.setAttribute("y", point1[1]+"px");
+		this.o.setAttribute("width", (point2[0]-point1[0])+"px");
+		this.o.setAttribute("height", (point2[1]-point1[1])+"px");
+		this.o.setAttribute("rx", parseInt(r)+"px");
+		this.o.setAttribute("ry", parseInt(r)+"px");
+		this.svg.appendChild(this.o);
+		//return new SVGObject(o,['roundRect',[point1,point2,r]]);
+	}
+	this.init(point1,point2,r);
+}
+jsGraphShapeSVG.RoundRect.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.Line=function(svg,point1, point2){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "line");
+	this.init = function(point1, point2){
+		this.o.setAttribute("x1", point1[0]+"px");
+		this.o.setAttribute("y1", point1[1]+"px");
+		this.o.setAttribute("x2", point2[0]+"px");
+		this.o.setAttribute("y2", point2[1]+"px");
+		this.svg.appendChild(this.o);
+	}
+	this.init(point1, point2);
+}
+jsGraphShapeSVG.Line.prototype=new jsGraphShapeSVG.Base();
+
+jsGraphShapeSVG.Arc=function(svg,point, r, beginArg, arg){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "path");
+	this.init = function(point, r, beginArg, arg){
+		var bx = r * Math.cos((beginArg-90)/180*Math.PI)+point[0];
+		var by = r * Math.sin((beginArg-90)/180*Math.PI)+point[1];
+		var ex = r * Math.cos((beginArg-90+arg)/180*Math.PI)+point[0];
+		var ey = r * Math.sin((beginArg-90+arg)/180*Math.PI)+point[1];
+		var dr=arg>0?1:0;
+		var d = 'M'+bx+' '+by+' A'+r+' '+r+' 0 0 '+dr+' '+ex+' '+ey;
+		this.o.setAttribute("d", d);
+		this.svg.appendChild(this.o);
+	}
+	this.init(point, r, beginArg, arg);
+}
+jsGraphShapeSVG.Arc.prototype=new jsGraphShapeSVG.Base();
 
 function jsGraphSVG(target, width, height) {
-	var svgNS = "http://www.w3.org/2000/svg";
+	var svgNS = "http://www.w3.org/2000/svg";	
 	this.svg = document.createElementNS(svgNS, "svg");
 	this.svg.setAttribute('width',width);
 	this.svg.setAttribute('height',height);
@@ -87,103 +275,7 @@ function jsGraphSVG(target, width, height) {
 	this.svg.appendChild(jsGraphSVG.def);
 	jsGraphSVG.defId = 0;
 	target.appendChild(this.svg);
-	/////////////////////////////
-	this.POLYGON=function(points){
-		var ret=new jsGraphPolygonSVG(points);
-		ret.setSVG(this.svg);
-		return ret;
-	}
-	/////////////////////////////
-	function setFillStroke(o, fill, stroke, strokeWidth){
-		if (stroke != null) {
-			o.setAttribute("stroke", stroke);
-		} else {
-			o.setAttribute("stroke", "none");
-		}
-		if (strokeWidth != null) {
-			o.setAttribute("stroke-width", strokeWidth);
-		}
-		if (fill != null) {
-			o.setAttribute("fill", fill);
-		} else {
-			o.setAttribute("fill", "none");
-		}
-	}
-	this.circle = function(point, r, fill, stroke, strokeWidth){
-		var o = document.createElementNS(svgNS, "circle");
-		setFillStroke(o, fill, stroke, strokeWidth);
-		o.setAttribute("r", r);
-		o.setAttribute("cx", point[0]+"px");
-		o.setAttribute("cy", point[1]+"px");
-		this.svg.appendChild(o);
-		return new SVGObject(o,['circle',[point, r]]);
-	}
-	this.ellipse = function(point1, point2, fill, stroke, strokeWidth){
-		var o = document.createElementNS(svgNS, "ellipse");
-		setFillStroke(o, fill, stroke, strokeWidth);
-		o.setAttribute("cx", ((point1[0]+point2[0])/2)+"px");
-		o.setAttribute("cy", ((point1[1]+point2[1])/2)+"px");
-		o.setAttribute("rx", ((point2[0]-point1[0])/2)+"px");
-		o.setAttribute("ry", ((point2[1]-point1[1])/2)+"px");
-		this.svg.appendChild(o);
-		return new SVGObject(o,['ellipse',[point1, point2]]);
-	}
-	this.rect = function(point1, point2, fill, stroke, strokeWidth){
-		var o = document.createElementNS(svgNS, "rect");
-		setFillStroke(o, fill, stroke, strokeWidth);
-		o.setAttribute("x", point1[0]+"px");
-		o.setAttribute("y", point1[1]+"px");
-		o.setAttribute("width", (point2[0]-point1[0])+"px");
-		o.setAttribute("height", (point2[1]-point1[1])+"px");
-		this.svg.appendChild(o);
-		return new SVGObject(o,['rect',[point1, point2]]);
-	}
-	this.roundRect = function(point1, point2, r, fill, stroke, strokeWidth){
-		var o = document.createElementNS(svgNS, "rect");
-		setFillStroke(o, fill, stroke, strokeWidth);
-		o.setAttribute("x", point1[0]+"px");
-		o.setAttribute("y", point1[1]+"px");
-		o.setAttribute("width", (point2[0]-point1[0])+"px");
-		o.setAttribute("height", (point2[1]-point1[1])+"px");
-		o.setAttribute("rx", parseInt(r)+"px");
-		o.setAttribute("ry", parseInt(r)+"px");
-		this.svg.appendChild(o);
-		return new SVGObject(o,['roundRect',[point1,point2,r]]);
-	}
-	this.line = function(point1, point2, stroke, strokeWidth){
-		var o = document.createElementNS(svgNS, "line");
-		setFillStroke(o, null, stroke, strokeWidth);
-		o.setAttribute("x1", point1[0]+"px");
-		o.setAttribute("y1", point1[1]+"px");
-		o.setAttribute("x2", point2[0]+"px");
-		o.setAttribute("y2", point2[1]+"px");
-		this.svg.appendChild(o);
-		return new SVGObject(o,['line',[point1, point2]]);
-	}
-	this.polygon = function(points, fill, stroke, strokeWidth) {
-		var o = document.createElementNS(svgNS, "polygon");
-		var pointsAttr = '';
-		for (var i=0;i<points.length ;i++ ){
-			pointsAttr+= points[i][0]+','+points[i][1]+' ';
-		}
-		o.setAttribute("points", pointsAttr);
-		setFillStroke(o, fill, stroke, strokeWidth);
-		this.svg.appendChild(o);
-		return new SVGObject(o,['polygon',[points]]);
-	}
-	this.arc = function(point, r, beginArg, arg, fill, stroke, strokeWidth){
-		var o = document.createElementNS(svgNS, "path");
-		var bx = r * Math.cos((beginArg-90)/180*Math.PI)+point[0];
-		var by = r * Math.sin((beginArg-90)/180*Math.PI)+point[1];
-		var ex = r * Math.cos((beginArg-90+arg)/180*Math.PI)+point[0];
-		var ey = r * Math.sin((beginArg-90+arg)/180*Math.PI)+point[1];
-		var d = 'M'+bx+' '+by+' A'+r+' '+r+' 0 0 1 '+ex+' '+ey;
-		setFillStroke(o, fill, stroke, strokeWidth);
-		o.setAttribute("d", d);
-		this.svg.appendChild(o);
-		return new SVGObject(o,['arc',[point, r, beginArg, arg]]);
-	}
-	//this.sector
+	jsGraphBindShapeFunc(jsGraphShapeSVG,this,this.svg);
 }
 function SVGObject(obj,param){
 	svgNS = "http://www.w3.org/2000/svg";
@@ -224,85 +316,82 @@ function SVGObject(obj,param){
 		this.obj.setAttribute('transform',t);
 	}
 }
-
 //end svg
 
-
-function jsGraphShapeVML(){
-	jsGraphShapeVML.curId=1;
-	
-	this.fill='white';
-	this.stroke='black';
-	this.strokeWidth=1;
-	this._onclick=function(){};
-
+//begin vml
+var jsGraphShapeVML={}
+jsGraphShapeVML.Base=function(){
+	jsGraphShapeVML.Base.curId=1;
 	this.setTarget=function(target){
 		this.target=target;
 	}
-	this.setFill=function(fill){
+	this.fill=function(fill){
 		if (fill != null) {
 			this.o.fillcolor = fill;
 		} else {
 			this.o.filled = "false";
 		}
-		this.fill=fill;
 		return this;
 	}
-	this.setStroke=function(stroke, strokeWidth){
+	this.stroke=function(stroke, strokeWidth){
 		if (strokeWidth != 0) {
 			this.o.strokeweight = strokeWidth;
 		} else {
 			this.o.strokeweight = "0";
 			this.o.stroked = "false";
 		}
-		this.o.strokecolor = stroke;
+		
 		if (stroke==null){
 			this.o.stroked = "false";
-		}	
-		this.stroke=stroke;
-		this.strokeWidth=strokeWidth;
+		}else{
+			this.o.strokecolor = stroke;
+		}
 		return this;
+	}
+	this.draw=function(target){
+		var target=target||this.target;
+		target.appendChild(this.o);
+	}
+	this.remove=function(){
+		try{
+		this.target.removeChild(this.o);
+		}catch(e){}
 	}
 	this.onclick=function(f){
 		this._onclick=f;
+		var self=this;
 		this.o.onclick=function(){
-			if (this._onclick){
-				this._onclick(window.event);
-			}
+			f(window.event,self);
 		}
+		return this;
 	}
 	this._beforeInit=function(){
-		if(this.o){
-			this.target.removeChild(this.o);
-		}
 		if (!this.id){
-			this.id=jsGraphShapeVML.curId;
+			this.id=jsGraphShapeVML.Base.curId;
 		}
 	}
 	this._afterInit=function(){
-		this.o.style.position = "absolute";
-		this.onclick(this._onclick);
 		this.o.style.zIndex=this.id;
-		this.setStroke(this.stroke,this.strokeWidth);
-		this.setFill(this.fill);
-		this.target.appendChild(this.o);
-		
+		this.o.style.position = "absolute";
 	}
 }
-function jsGraphPolygonVML(target,points){
-	this.target=target;
-	jsGraphShapeVML.curId++;
+jsGraphShapeVML.Base.prototype=new jsGraphShape();
 
+jsGraphShapeVML.Polygon=function(target,points){
+	this.target=target;
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:polyline");
 	this.init= function (points){
 		this._beforeInit();
-		this.o = document.createElement("v:polyline");
 		var pointsAttr='';
 		for (var i=0;i<points.length ;i++ ){
 			pointsAttr+= points[i][0]+','+points[i][1]+' ';
 		}
 		pointsAttr+= points[0][0]+','+points[0][1];
 		this.params=arguments;
-		this.o.setAttribute('points',pointsAttr);
+		this.remove();
+		this.o.points=pointsAttr;
+		this.draw();
 		this._afterInit();
 	}
 	this.init(points);
@@ -312,15 +401,14 @@ function jsGraphPolygonVML(target,points){
 		return this;
 	}
 }
-jsGraphPolygonVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.Polygon.prototype=new jsGraphShapeVML.Base();
 
-function jsGraphEllipseVML(target,point1, point2){
+jsGraphShapeVML.Ellipse=function(target,point1, point2){
 	this.target=target;
-	jsGraphShapeVML.curId++;
-
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:oval");
 	this.init= function (point1, point2){
 		this._beforeInit();
-		this.o = document.createElement("v:oval");
 		this.o.style.width = (point2[0] - point1[0]) + "px";
 		this.o.style.height = (point2[1] - point1[1]) + "px";
 		this.o.style.left = point1[0] + "px";
@@ -329,6 +417,7 @@ function jsGraphEllipseVML(target,point1, point2){
 		this._afterInit();
 	}
 	this.init(point1, point2);
+	this.draw();
 	this.rotate=function(arg,center){
 		var c=[(this.params[0][0]+this.params[1][0])/2,(this.params[0][1]+this.params[1][1])/2];
 		var np = JsGraphUtil.rotate([c],arg,center);
@@ -343,15 +432,14 @@ function jsGraphEllipseVML(target,point1, point2){
 		return this;
 	}
 }
-jsGraphEllipseVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.Ellipse.prototype=new jsGraphShapeVML.Base();
 
-function jsGraphCircleVML(target,point, r){
+jsGraphShapeVML.Circle=function(target,point, r){
 	this.target=target;
-	jsGraphShapeVML.curId++;
-
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:oval");
 	this.init= function (point, r){
 		this._beforeInit();
-		this.o = document.createElement("v:oval");
 		this.o.style.width = (r*2) + "px";
 		this.o.style.height = (r*2) + "px";
 		this.o.style.left = (point[0]-r) + "px";
@@ -361,21 +449,23 @@ function jsGraphCircleVML(target,point, r){
 		this._afterInit();
 	}
 	this.init(point, r);
+	this.draw();
 	this.rotate=function(arg,center){
 		var newPoints = JsGraphUtil.rotate([this._point],arg,center);
 		this.init(newPoints[0],this._r);
 		return this;
 	}
 }
-jsGraphCircleVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.Circle.prototype=new jsGraphShapeVML.Base();
 
-function jsGraphRectVML(target, point1, point2){
+jsGraphShapeVML.Rect=function(target, point1, point2){
 	this.target=target;
-	jsGraphShapeVML.curId++;
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:Rect");
 	this.init= function (point1, point2){
 		this.params=arguments;
 		this._beforeInit();
-		this.o = document.createElement("v:Rect");
+		
 		this.o.style.width = (point2[0] - point1[0]) + "px";
 		this.o.style.height = (point2[1] - point1[1]) + "px";
 		this.o.style.left = point1[0] + "px";
@@ -383,6 +473,7 @@ function jsGraphRectVML(target, point1, point2){
 		this._afterInit();
 	}
 	this.init(point1, point2);
+	this.draw();
 	this.rotate=function(arg,center){
 		var c=[(this.params[0][0]+this.params[1][0])/2,(this.params[0][1]+this.params[1][1])/2];
 		var np = JsGraphUtil.rotate([c],arg,center);
@@ -397,15 +488,15 @@ function jsGraphRectVML(target, point1, point2){
 		return this;
 	}
 }
-jsGraphRectVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.Rect.prototype=new jsGraphShapeVML.Base();
 
-function jsRoundRectShapeVML(target,point1, point2, r){
+jsGraphShapeVML.RoundRect=function(target,point1, point2, r){
 	this.target=target;
-	jsGraphShapeVML.curId++;
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:RoundRect");
 	this.init= function (point1, point2,r){
 		this.params=arguments;
 		this._beforeInit();
-		this.o = document.createElement("v:RoundRect");
 		this.o.style.position = "absolute";
 		this.o.style.width = (point2[0] - point1[0]) + "px";
 		this.o.style.height = (point2[1] - point1[1]) + "px";
@@ -415,6 +506,7 @@ function jsRoundRectShapeVML(target,point1, point2, r){
 		this._afterInit();
 	}
 	this.init(point1, point2,r);
+	this.draw();
 	this.rotate=function(arg,center){
 		var c=[(this.params[0][0]+this.params[1][0])/2,(this.params[0][1]+this.params[1][1])/2];
 		var np = JsGraphUtil.rotate([c],arg,center);
@@ -429,15 +521,16 @@ function jsRoundRectShapeVML(target,point1, point2, r){
 		return this;
 	}
 }
-jsRoundRectShapeVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.RoundRect.prototype=new jsGraphShapeVML.Base();
 
-function jsArcShapeVML(target,point, r, beginArg, arg){
+jsGraphShapeVML.Arc=function(target,point, r, beginArg, arg){
 	this.target=target;
-	jsGraphShapeVML.curId++;
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:arc");
 	this.init =function(point, r, beginArg, arg){
 		this.params=arguments;
 		this._beforeInit();
-		this.o = document.createElement("v:arc");
+		beginArg=beginArg>180?beginArg-360:beginArg;
 		this.o.StartAngle=beginArg;
 		this.o.EndAngle=beginArg+arg;
 		this.o.style.width=(r*2)+'px';
@@ -448,88 +541,73 @@ function jsArcShapeVML(target,point, r, beginArg, arg){
 		this._afterInit();
 	}
 	this.init(point, r, beginArg, arg);
+	this.draw();
 	this.rotate=function(arg,center){
 		var newPoints = JsGraphUtil.rotate([this.params[0]],arg,center);
 		this.init(newPoints[0],this.params[1],this.params[2]+arg,this.params[3]);
 		return this;
 	}
 }
-jsArcShapeVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.Arc.prototype=new jsGraphShapeVML.Base();
 
-function jsLineShapeVML(target,point1, point2){
+jsGraphShapeVML.Line=function(target,point1, point2){
 	this.target=target;
-	jsGraphShapeVML.curId++;
+	jsGraphShapeVML.Base.curId++;
+	this.o = document.createElement("v:line");
 	this.init = function(point1, point2){
 		this.params=arguments;
 		this._beforeInit();
-		this.o = document.createElement("v:line");
 		this.o.style.position = "absolute";
 		this.o.from=point1[0]+','+point1[1];
 		this.o.to=point2[0]+','+point2[1];
 		this._afterInit();
 	}
 	this.init(point1, point2);
+	this.draw();
 	this.rotate=function(arg,center){
 		var newPoints = JsGraphUtil.rotate(this.params,arg,center);
 		this.init(newPoints[0],newPoints[1]);
 		return this;
 	}
 }
-jsLineShapeVML.prototype=new jsGraphShapeVML();
+jsGraphShapeVML.Line.prototype=new jsGraphShapeVML.Base();
 
+jsGraphShapeVML.Group=function(target,point){
+	this.target=target;
+	jsGraphShapeVML.Base.curId++;
+	this.o=document.createElement("v:group");
+	this.init = function(point){
+		this._point=point;
+		this._beforeInit();
+		this.o.style.left=point[0]+'px';
+		this.o.style.top=point[1]+'px';
+		this.o.coordsize='1,1';
+		this.o.style.width='1px';
+		this.o.style.height='1px';
+		this._afterInit();
+	}
+	this.init(point);	
+	this.target.appendChild(this.o);
+	this.rotate=function(arg,center){
+		var newPoints = JsGraphUtil.rotate([this._point],arg,center);
+		this.init(newPoints[0]);
+		var old=this._rotation?parseInt(this.o.style.rotation):this._rotation=0;
+		this._rotation+=parseInt(arg);
+		this.o.style.rotation=this._rotation;
+	}
+	jsGraphBindShapeFunc(jsGraphShapeVML,this,this.o);
+}
+jsGraphShapeVML.Group.prototype=new jsGraphShapeVML.Base();
 function jsGraphVML(target) {
-	document.namespaces.add("v", "urn:schemas-microsoft-com:vml");
-	var style = document.createStyleSheet();
-	style.addRule('v\\:*', "behavior: url(#default#VML);");
-	target.style.position='relative';
+	if(jsGraphVML.inited==undefined){
+		document.namespaces.add("v", "urn:schemas-microsoft-com:vml");
+		var style = document.createStyleSheet();
+		style.addRule('v\\:*', "behavior: url(#default#VML);");
+		target.style.position='relative';
+	}
+	jsGraphVML.inited=true;
 	this.target = target;
-
-	function setFillStroke(o, fill, stroke, strokeWidth){
-		if (strokeWidth != null) {
-			o.strokeweight = strokeWidth;
-		} else {
-			o.strokeweight = "0px";
-		}
-		if (stroke != null) {
-			o.strokecolor = stroke;
-		} else {
-			o.stroked = "false"
-		}
-		if (fill != null) {
-			o.fillcolor = fill;
-		} else {
-			o.filled = false;
-		}
-	}
-	this.polygon=function(points){
-		var ret=new jsGraphPolygonVML(this.target,points);
-		return ret;
-	}
-	this.circle=function(point,r){
-		var ret=new jsGraphCircleVML(this.target,point,r);
-		return ret;
-	}
-	
-	this.ellipse = function(point1, point2){
-		var ret=new jsGraphEllipseVML(this.target,point1, point2);
-		return ret;
-	}
-	this.rect = function(point1, point2){
-		var ret=new jsGraphRectVML(this.target,point1, point2);
-		return ret;
-	}
-	this.roundRect = function(point1, point2, r){
-		var ret=new jsRoundRectShapeVML(this.target,point1, point2,r);
-		return ret;
-	}
-	this.line = function(point1, point2){
-		var ret=new jsLineShapeVML(this.target,point1, point2);
-		return ret;
-	}
-	this.arc = function(point, r, beginArg, arg){
-		var ret=new jsArcShapeVML(this.target,point, r, beginArg, arg);
-		return ret;
-	}
+	jsGraphBindShapeFunc(jsGraphShapeVML,this,this.target);
 }
 function VMLObject(obj,param){
 	this.obj = obj;
