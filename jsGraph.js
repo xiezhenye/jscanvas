@@ -266,6 +266,26 @@ jsGraphShapeSVG.Arc=function(svg,point, r, beginArg, arg){
 }
 jsGraphShapeSVG.Arc.prototype=new jsGraphShapeSVG.Base();
 
+jsGraphShapeSVG.Sector=function(svg,point, r, beginArg, arg){
+	this.svg=svg;
+	this.o = document.createElementNS(this.svgNS, "path");
+	this.init = function(point, r, beginArg, arg){
+		var bx = r * Math.cos((beginArg-90)/180*Math.PI)+point[0];
+		var by = r * Math.sin((beginArg-90)/180*Math.PI)+point[1];
+		var ex = r * Math.cos((beginArg-90+arg)/180*Math.PI)+point[0];
+		var ey = r * Math.sin((beginArg-90+arg)/180*Math.PI)+point[1];
+		var dr=arg>0?1:0;
+		var d = 'M'+point[0]+' '+point[1]+
+			' L'+bx+' '+by+
+			' A'+r+' '+r+' 0 0 '+dr+' '+ex+' '+ey+
+			' L'+point[0]+' '+point[1];
+		this.o.setAttribute("d", d);
+		this.svg.appendChild(this.o);
+	}
+	this.init(point, r, beginArg, arg);
+}
+jsGraphShapeSVG.Sector.prototype=new jsGraphShapeSVG.Base();
+
 function jsGraphSVG(target, width, height) {
 	var svgNS = "http://www.w3.org/2000/svg";	
 	this.svg = document.createElementNS(svgNS, "svg");
@@ -549,6 +569,38 @@ jsGraphShapeVML.Arc=function(target,point, r, beginArg, arg){
 	}
 }
 jsGraphShapeVML.Arc.prototype=new jsGraphShapeVML.Base();
+
+jsGraphShapeVML.Sector=function(target,point, r, beginArg, arg){
+	this.o = document.createElement("v:shape");
+	this.target=target;
+	this.init = function(point, r, beginArg, arg){
+		this.params=arguments;
+		this._beforeInit();
+		var p = document.createElement("v:path");
+		p.style.width=(r*2)+'px';
+		p.style.height=(r*2)+'px';
+		p.coordsize = (r*2)+','+(r*2);
+		p.v='m'+point[0]+' '+point[1]+
+			' ae'+point[0]+','+point[1]+','+
+			(r)+','+(r)+','+
+			((-beginArg+90)*65536)+','+(-arg*65536)+
+			' xe';
+		
+		this.o.coordsize = (r*2)+','+(r*2);
+		this.o.style.width=(r*2)+'px';
+		this.o.style.height=(r*2)+'px';
+		this.o.appendChild(p);
+		this._afterInit();
+	}
+	this.init(point, r, beginArg, arg);
+	this.draw();
+	this.rotate=function(arg,center){
+		var newPoints = JsGraphUtil.rotate([this.params[0]],arg,center);
+		this.init(newPoints[0],this.params[1],this.params[2]+arg,this.params[3]);
+		return this;
+	}
+}
+jsGraphShapeVML.Sector.prototype=new jsGraphShapeVML.Base();
 
 jsGraphShapeVML.Line=function(target,point1, point2){
 	this.target=target;

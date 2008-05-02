@@ -17,6 +17,15 @@
 		c1.hide();
 		setTimeout('c1.show()',1000);
 	});
+	var o = [550,200];
+	with(canvas){
+		sector(o,120,0,90).fill('purple').stroke('black',1);
+		sector(o,120,90,30).fill('red').stroke('black',1);
+		sector(o,120,120,45).fill('blue').stroke('black',1);
+		sector(o,120,165,60).fill('green').stroke('black',1);
+		sector(o,120,225,15).fill('yellow').stroke('black',1);
+		sector(o,120,240,120).fill('#0ff').stroke('black',1);
+	}
   </script>
  </body>
 </html>
