@@ -1,8 +1,8 @@
 function createJsGraph(target,width,height) {
-	if (document.createElementNS) {
-		return new jsGraphSVG(target,width,height);
-	} else if(document.createStyleSheet) {
+	if (document.createStyleSheet && document.all) {
 		return new jsGraphVML(target,width,height);
+	} else if (document.createElementNS) {
+		return new jsGraphSVG(target,width,height);		
 	}
 }
 var JsGraphUtil={
