@@ -1,0 +1,1 @@
+Jscanvas is a javascript graphic library. It use the ability of browser to draw graphics. For example, it will use vml on IE and svg on Firefox and Opera.
